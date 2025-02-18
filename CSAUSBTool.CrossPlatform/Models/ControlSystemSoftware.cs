@@ -6,6 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace CSAUSBTool.CrossPlatform.Models
     public class ControlSystemSoftware : ReactiveObject
     {
         public string Name { get; set; }
-        public string FileName { get; set; }
+        public string? FileName { get; set; }
         public string Description { get; set; }
         public List<string> Tags { get; set; }
         public string Uri { get; set; }
@@ -35,10 +36,36 @@ namespace CSAUSBTool.CrossPlatform.Models
             {
                 throw new ArgumentNullException("Uri", "must not be null");
             }
-
             FileName ??= Uri.Split('/').Last();
+
+            var outputUri = new Uri(new Uri(outputPath), FileName);
+
+            try
+            {
+                await using var existingFile = File.OpenRead(outputUri.AbsolutePath);
+
+                if (existingFile is { Length: > 0 })
+                {
+                    if (Hash != null)
+                    {
+                        var currentHash = CalculateMD5(existingFile);
+                        if (currentHash == Hash)
+                        {
+                            return;
+                        }
+
+                        File.Delete(outputUri.AbsolutePath);
+                    }
+                }
+            }
+            catch (FileNotFoundException e)
+            {
+                // Silently catch this - this is ignored.
+            }
+            
+
             using var client =
-                new HttpClientDownloadWithProgress(Uri, new Uri(new Uri(outputPath), FileName).AbsolutePath);
+                new HttpClientDownloadWithProgress(Uri, outputUri.AbsolutePath);
             //client.ProgressChanged += _8kbBuffer;
             client.ProgressChanged += UpdateProgress;
             await client.StartDownload(token);
@@ -48,6 +75,12 @@ namespace CSAUSBTool.CrossPlatform.Models
         {
             Debug.WriteLine($"Downloaded {totalBytesDownloaded} of {totalFileSize} - {progressPercentage}%");
             DownloadProgress = progressPercentage ?? 0;
+        }
+        private string CalculateMD5(FileStream stream)
+        {
+            using var md5 = MD5.Create();
+            var hash = md5.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
     }
 }

@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia.Animation.Easings;
 
 
 namespace CSAUSBTool.CrossPlatform.ViewModels
@@ -34,7 +35,7 @@ namespace CSAUSBTool.CrossPlatform.ViewModels
         public void DownloadSoftwareLists()
         {
             var downloadUrl =
-                $"https://raw.githubusercontent.com/JamieSinn/CSA-USB-Tool/refs/heads/main/Lists/{Program}{Year}.json";
+                $"https://raw.githubusercontent.com/JamieSinn/CSA-USB-Tool/main/Lists/{Program}{Year}.json";
 
             using var client = new HttpClient();
             try
@@ -45,6 +46,7 @@ namespace CSAUSBTool.CrossPlatform.ViewModels
             }
             catch (Exception e)
             {
+                Console.WriteLine(e);
                 // Ignore errors that are generally 404's from mismatched years/programs for legacy compat.
             }
         }
